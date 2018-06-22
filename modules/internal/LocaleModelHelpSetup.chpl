@@ -103,6 +103,19 @@ module LocaleModelHelpSetup {
     here.runningTaskCntSet(0);  // locale init parallelism mis-sets this
   }
 
+  proc helpSetupRootLocaleGPU(dst:RootLocale) {
+    var root_accum:chpl_root_locale_accum;
+
+    forall locIdx in dst.chpl_initOnLocales() with (ref root_accum) {
+      chpl_task_setSubloc(c_sublocid_any);
+      const node = new unmanaged LocaleModel(dst);
+      dst.myLocales[locIdx] = node;
+      root_accum.accum(node);
+    }
+
+    root_accum.setRootLocaleValues(dst);
+  }
+  
   // gasnet-smp and gasnet-udp w/ GASNET_SPAWNFN=L are local spawns
   private inline proc localSpawn() {
     if CHPL_COMM == "gasnet" {
@@ -205,5 +218,42 @@ module LocaleModelHelpSetup {
 
     dst.GPU = new unmanaged GPULocale(1:chpl_sublocID_t, dst);
     chpl_task_setSubloc(origSubloc);
+  }
+
+  proc helpSetupLocaleGPU(dst:LocaleModel, out local_name:string, out numSublocales) {
+    helpSetupLocaleFlat(dst, local_name);
+
+    extern proc chpl_task_getNumSublocales(): int(32);
+    //numSublocales = chpl_task_getNumSublocales();
+    numSublocales = 2;
+
+    extern proc chpl_task_getMaxPar(): uint(32);
+
+    if numSublocales >= 1 {
+      dst.childSpace = {0..#numSublocales};
+      // These nPUs* values are estimates only; better values await
+      // full hwloc support. In particular it assumes a homogeneous node
+
+      const origSubloc = chpl_task_getRequestedSubloc(); // this should be any
+      for i in dst.childSpace {
+        // allocate the structure on the proper sublocale
+        chpl_task_setSubloc(i:chpl_sublocID_t);
+        dst.childLocales[i] = new unmanaged NumaDomain(i:chpl_sublocID_t, dst);
+	if (i == 0) {
+	    dst.childLocales[i].nPUsPhysAcc = dst.nPUsPhysAcc; // HW threads, accessible
+	    dst.childLocales[i].nPUsPhysAll = dst.nPUsPhysAll; // HW threads, all
+	    dst.childLocales[i].nPUsLogAcc = dst.nPUsLogAcc;   // HW cores, accessible
+	    dst.childLocales[i].nPUsLogAll = dst.nPUsLogAll;   // HW cores, all
+	    dst.childLocales[i].maxTaskPar = chpl_task_getMaxPar();
+	} else {
+	    dst.childLocales[i].nPUsPhysAcc = 1;
+	    dst.childLocales[i].nPUsPhysAll = 1;
+	    dst.childLocales[i].nPUsLogAcc = 1;
+	    dst.childLocales[i].nPUsLogAll = 1;
+	    dst.childLocales[i].maxTaskPar = 1;
+	}
+      }
+      chpl_task_setSubloc(origSubloc);
+    }
   }
 }
