@@ -20,8 +20,8 @@
 module LocaleModelHelpGPU {
 
   param localeModelHasSublocales = true;
-  config param debugGPULocales = true;
-  
+  config param debugGPULocales = false;
+
   use LocaleModelHelpSetup;
   use LocaleModelHelpRuntime;
 
@@ -91,7 +91,7 @@ module LocaleModelHelpGPU {
     if (debugGPULocales) {
 	chpl_debug_writeln("[GPU Locales] chpl_executeOn: dnode = ", dnode, " dusbloc = ", dsubloc);
     }
-    
+
     if dnode != chpl_nodeID {
       var tls = chpl_task_getChapelData();
       chpl_task_data_setup(chpl_comm_on_bundle_task_bundle(args), tls);
@@ -107,7 +107,7 @@ module LocaleModelHelpGPU {
            chpl_localeModel_sublocToExecutionSubloc(origSubloc)==origSubloc)) {
 	  if (debugGPULocales) {
 	      chpl_debug_writeln("directly call ftable_call");
-	  }	  
+	  }
 	  chpl_ftable_call(fn, args);
       } else {
         // move to a different sublocale
@@ -159,7 +159,7 @@ module LocaleModelHelpGPU {
                         fn: int,              // on-body function idx
                         args: chpl_comm_on_bundle_p,     // function args
                         args_size: size_t     // args size
-                       ) {      
+                       ) {
     //
     // If we're in serial mode, we should use blocking rather than
     // non-blocking "on" in order to serialize the execute_ons.
@@ -170,7 +170,7 @@ module LocaleModelHelpGPU {
     if (debugGPULocales) {
 	chpl_debug_writeln("[GPU Locales] chpl_executeOnNB: dnode = ", dnode, " dusbloc = ", dsubloc);
     }
-    
+
     var tls = chpl_task_getChapelData();
     var isSerial = chpl_task_data_getSerial(tls);
     if dnode == chpl_nodeID {
