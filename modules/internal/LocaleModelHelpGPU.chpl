@@ -19,7 +19,7 @@
 
 module LocaleModelHelpGPU {
 
-  param localeModelHasSublocales = true;
+  param localeModelHasSublocales = false;
   config param debugGPULocales = false;
 
   use LocaleModelHelpSetup;
